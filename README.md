@@ -12,7 +12,7 @@ scomic [FILE]
 - SDL2_image-2.0.5
 - libzip-1.7.3
 
-The required versions may not be the correct ones.
+These are the versions I tested with, the actual requirements may differ.
 
 ## TODO
 - Finish writing the reader

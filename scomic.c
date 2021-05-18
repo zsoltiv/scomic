@@ -16,6 +16,7 @@
 #include <SDL2/SDL_rwops.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
+#include <SDL2/SDL_keyboard.h>
 #include <zip.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -34,6 +35,7 @@ static SDL_Surface *load_img(const uint8_t *buf, int size, SDL_Surface *win_surf
 static uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz);
 static void load_pages(SDL_Surface **images, zip_t *archive, int64_t i,
     int64_t entries, SDL_Surface *win_surf);
+static void free_pages(SDL_Surface **_pages);
 
 int main(int argc, char **argv)
 {
@@ -92,12 +94,30 @@ int main(int argc, char **argv)
 
     SDL_Event e;
 
-    while(true)
+    bool run = true;
+
+    while(run)
     {
         SDL_PollEvent(&e);
 
-        if(e.type == SDL_QUIT)
-            break;
+        switch(e.type)
+        {
+            case SDL_QUIT:
+                run = false;
+                break;
+            case SDL_KEYDOWN:
+                switch(e.key.keysym.sym)
+                {
+                    case SDLK_q:
+                        run = false;
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            default:
+                break;
+        }
 
         load_pages(pages, za, atoi(argv[2]), num_entries, win_surf);
     }
@@ -145,6 +165,7 @@ static SDL_Surface *load_img(const uint8_t *buf, int size, SDL_Surface *win_surf
 {
     SDL_RWops *rw = SDL_RWFromMem(buf, size);
     SDL_Surface *img = IMG_Load_RW(rw, 1);
+
     if(!img) {
         SDL_Log("couldn't open image: %s\n", SDL_GetError());
         return NULL;
@@ -213,12 +234,23 @@ static void load_pages(SDL_Surface **images, zip_t *archive,
 
     for(int index = 0; index < MAX_IMAGES_LOADED; index++)
     {
-        printf("index: %d\n", index);
+        printf("index: %d\npage: %d\n", index, low + index);
         size_t sz;
         uint8_t *buf = read_file_in_zip(archive, low + index, &sz);
         images[index] = load_img(buf, sz, win_surf);
         
         free(buf);
 
+    }
+
+    /* temporary solution for the insane memory leak */
+    free_pages(images);
+}
+
+static void free_pages(SDL_Surface **_pages)
+{
+    for(int i = 0; i < MAX_IMAGES_LOADED; i++)
+    {
+        SDL_FreeSurface(_pages[i]);
     }
 }

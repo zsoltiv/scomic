@@ -33,9 +33,10 @@ static void die(const char *msg);
 static uint8_t *read_file_to_memory(const char *archive, size_t *sz);
 static SDL_Surface *load_img(const uint8_t *buf, int size, SDL_Surface *win_surf);
 static uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz);
-static void load_pages(SDL_Surface **images, zip_t *archive, int64_t i,
-    int64_t entries, SDL_Surface *win_surf);
+static void load_pages(SDL_Surface **images, zip_t *archive,
+    int64_t i, int64_t low, int64_t high, SDL_Surface *win_surf);
 static void free_pages(SDL_Surface **_pages);
+static void get_high_and_low(int64_t i, int64_t entries, int64_t *low, int64_t *high);
 
 int main(int argc, char **argv)
 {
@@ -96,6 +97,8 @@ int main(int argc, char **argv)
 
     bool run = true;
 
+    int64_t current_page = (argc == 3) ? atoi(argv[2]) : 0;
+
     while(run)
     {
         SDL_PollEvent(&e);
@@ -111,6 +114,12 @@ int main(int argc, char **argv)
                     case SDLK_q:
                         run = false;
                         break;
+                    case SDLK_UP:
+                        current_page++;
+                        break;
+                    case SDLK_DOWN:
+                        current_page = (current_page <= 0) ? 0 : (current_page - 1);
+                        break;
                     default:
                         break;
                 }
@@ -119,7 +128,10 @@ int main(int argc, char **argv)
                 break;
         }
 
-        load_pages(pages, za, atoi(argv[2]), num_entries, win_surf);
+        int64_t low, high;
+        get_high_and_low(current_page, num_entries, &low, &high);
+        load_pages(pages, za, current_page, low, high, win_surf);
+        free_pages(pages);
     }
 
     zip_error_fini(&error);
@@ -211,27 +223,19 @@ static uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz)
     return buffer;
 }
 
-/* we load the previous 5, the current and the next 5 pages */
-static void load_pages(SDL_Surface **images, zip_t *archive,
-    int64_t i, int64_t entries, SDL_Surface *win_surf)
+static void get_high_and_low(int64_t i, int64_t entries, int64_t *low, int64_t *high)
 {
-    /* the indices of the furthest pages */
-    int64_t low, high;
-    
     /* this is the number of loaded pages before and after the current page */
     const int64_t half_of_extra_pages = (MAX_IMAGES_LOADED - 1) / 2;
 
-    /* set the low and high indices */
-    if(i - half_of_extra_pages < 0)
-        low = 0;
-    else
-        low = i - half_of_extra_pages;
+    *low = (i - half_of_extra_pages < 0) ? 0 : (i - half_of_extra_pages);
+    *high = (i + half_of_extra_pages >= entries) ? (entries - 1) : (i + half_of_extra_pages);
+}
 
-    if(i + half_of_extra_pages >= entries)
-        high = entries - 1;
-    else
-        high = i + half_of_extra_pages;
-
+/* we load the previous 5, the current and the next 5 pages */
+static void load_pages(SDL_Surface **images, zip_t *archive,
+    int64_t i, int64_t low, int64_t high, SDL_Surface *win_surf)
+{
     for(int index = 0; index < MAX_IMAGES_LOADED; index++)
     {
         printf("index: %d\npage: %d\n", index, low + index);
@@ -240,11 +244,7 @@ static void load_pages(SDL_Surface **images, zip_t *archive,
         images[index] = load_img(buf, sz, win_surf);
         
         free(buf);
-
     }
-
-    /* temporary solution for the insane memory leak */
-    free_pages(images);
 }
 
 static void free_pages(SDL_Surface **_pages)

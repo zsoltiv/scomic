@@ -98,9 +98,16 @@ int main(int argc, char **argv)
     bool run = true;
 
     int64_t current_page = (argc == 3) ? atoi(argv[2]) : 0;
+    int64_t prev_page;
+    int64_t low, high;
+
+    get_high_and_low(current_page, num_entries, &low, &high);
+    load_pages(pages, za, current_page, low, high, win_surf);
 
     while(run)
     {
+        prev_page = current_page;
+
         SDL_PollEvent(&e);
 
         switch(e.type)
@@ -115,10 +122,10 @@ int main(int argc, char **argv)
                         run = false;
                         break;
                     case SDLK_UP:
-                        current_page++;
+                        current_page = (current_page <= 0) ? 0 : (current_page - 1);
                         break;
                     case SDLK_DOWN:
-                        current_page = (current_page <= 0) ? 0 : (current_page - 1);
+                        current_page++;
                         break;
                     default:
                         break;
@@ -128,10 +135,13 @@ int main(int argc, char **argv)
                 break;
         }
 
-        int64_t low, high;
-        get_high_and_low(current_page, num_entries, &low, &high);
-        load_pages(pages, za, current_page, low, high, win_surf);
-        free_pages(pages);
+        /* if the pages have changed, load new pages */
+        if(current_page != prev_page) {
+            /* TODO: make the loading part more efficient */
+            free_pages(pages);
+            get_high_and_low(current_page, num_entries, &low, &high);
+            load_pages(pages, za, current_page, low, high, win_surf);
+        }
     }
 
     zip_error_fini(&error);

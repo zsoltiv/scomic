@@ -1,15 +1,17 @@
-/*  This program is free software: you can redistribute it and/or modify
+/*  This file is part of scomic.
+
+    scomic is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
+    scomic is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+    along with scomic.  If not, see <https://www.gnu.org/licenses/>. */
 
 #include <SDL2/SDL_error.h>
 #include <SDL2/SDL_events.h>
@@ -17,7 +19,6 @@
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
 #include <SDL2/SDL_keyboard.h>
-#include <zip.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
@@ -26,18 +27,9 @@
 #include <stdio.h>
 #include <stdint.h>
 
-/* the maximum number of images stored as SDL_Surfaces at the same time */
-#define MAX_IMAGES_LOADED 5
-
-static void die(const char *msg);
-static uint8_t *read_file_to_memory(const char *archive, size_t *sz);
-static SDL_Surface *load_img(const uint8_t *buf, int size, SDL_Surface *win_surf);
-static uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz);
-static void load_pages(SDL_Surface **images, zip_t *archive,
-    int64_t i, int64_t low, int64_t high, SDL_Surface *win_surf);
-static void free_pages(SDL_Surface **_pages);
-static void get_high_and_low(int64_t i, int64_t entries, int64_t *low, int64_t *high);
-static void draw(SDL_Window *win, SDL_Surface *screen_surf, SDL_Surface *page);
+#include "common.h"
+#include "file.h"
+#include "draw.h"
 
 
 int main(int argc, char **argv)
@@ -161,119 +153,4 @@ int main(int argc, char **argv)
     IMG_Quit();
     SDL_Quit();
     return 0;
-}
-
-static void die(const char *msg)
-{
-    fprintf(stderr, "ERROR: %s\n", msg);
-    exit(EXIT_FAILURE);
-}
-
-static uint8_t *read_file_to_memory(const char *archive, size_t *sz)
-{
-    FILE *fp = fopen(archive, "rb");
-    if(!fp)
-        die("failed to open archive");
-
-    fseek(fp, 0, SEEK_END);
-    *sz = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    uint8_t *buf = malloc(*sz * sizeof(uint8_t));
-
-    if(fread(buf, sizeof(uint8_t), *sz, fp) < *sz)
-        die("failed to read from file");
-
-    fclose(fp);
-
-    return buf;
-}
-
-static SDL_Surface *load_img(const uint8_t *buf, int size, SDL_Surface *win_surf)
-{
-    SDL_RWops *rw = SDL_RWFromMem((void *) buf, size);
-    SDL_Surface *img = IMG_Load_RW(rw, 1);
-
-    if(!img) {
-        SDL_Log("couldn't open image: %s\n", SDL_GetError());
-        return NULL;
-    }
-
-    SDL_Surface *optimized_surf = SDL_ConvertSurface(img, win_surf->format, 0);
-    if(!optimized_surf) {
-        SDL_Log("%s\n", SDL_GetError());
-        die("failed to optimize image");
-    }
-
-    SDL_FreeSurface(img);
-    
-    return optimized_surf;
-}
-
-static uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz)
-{
-    zip_stat_t stats;
-    zip_stat_init(&stats);
-
-    /* get size of file in archive */
-    zip_stat_index(archive, i, ZIP_FL_ENC_RAW, &stats);
-    if((stats.valid & ZIP_STAT_SIZE) == ZIP_STAT_SIZE)
-        printf("file size: %lu\n", stats.size);
-    else
-        die("failed to get file size");
-
-    zip_file_t *fp = zip_fopen_index(archive, i, ZIP_FL_UNCHANGED);
-    if(!fp) {
-        fprintf(stderr, "%s\n", zip_file_strerror(fp));
-        die("failed to open file in archive");
-    }
-    
-    *sz = stats.size;
-
-    uint8_t *buffer = calloc(*sz, sizeof(uint8_t));
-
-    if(zip_fread(fp, buffer, *sz) == -1)
-        die("failed to read from file in archive");
-
-    zip_fclose(fp);
-    return buffer;
-}
-
-static void get_high_and_low(int64_t i, int64_t entries, int64_t *low, int64_t *high)
-{
-    /* this is the number of loaded pages before and after the current page */
-    const int64_t half_of_extra_pages = (MAX_IMAGES_LOADED - 1) / 2;
-
-    *low = (i - half_of_extra_pages < 0) ? 0 : (i - half_of_extra_pages);
-    *high = (i + half_of_extra_pages >= entries) ? (entries - 1) : (i + half_of_extra_pages);
-}
-
-/* we load the previous 5, the current and the next 5 pages */
-static void load_pages(SDL_Surface **images, zip_t *archive,
-    int64_t i, int64_t low, int64_t high, SDL_Surface *win_surf)
-{
-    for(int index = 0; index < MAX_IMAGES_LOADED; index++)
-    {
-        printf("index: %d\npage: %ld\n", index, low + index);
-        size_t sz;
-        uint8_t *buf = read_file_in_zip(archive, low + index, &sz);
-        images[index] = load_img(buf, sz, win_surf);
-        
-        free(buf);
-    }
-}
-
-static void free_pages(SDL_Surface **_pages)
-{
-    for(int i = 0; i < MAX_IMAGES_LOADED; i++)
-    {
-        SDL_FreeSurface(_pages[i]);
-    }
-}
-
-static void draw(SDL_Window *win, SDL_Surface *screen_surf, SDL_Surface *page)
-{
-    SDL_BlitSurface(page, NULL, screen_surf, NULL);
-
-    SDL_UpdateWindowSurface(win);
 }

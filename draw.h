@@ -1,0 +1,39 @@
+/*  This file is part of scomic.
+
+    scomic is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    scomic is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with scomic.  If not, see <https://www.gnu.org/licenses/>. */
+
+#ifndef DRAW_H
+#define DRAW_H
+
+#include <SDL2/SDL_error.h>
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_rwops.h>
+#include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_video.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+
+#include <zip.h>
+
+/* the maximum number of images stored as SDL_Surfaces at the same time */
+#define MAX_IMAGES_LOADED 5
+
+SDL_Surface *load_img(const uint8_t *buf, int size, SDL_Surface *win_surf);
+void load_pages(SDL_Surface **images, zip_t *archive,
+    int64_t i, int64_t low, int64_t high, SDL_Surface *win_surf);
+void free_pages(SDL_Surface **_pages);
+void get_high_and_low(int64_t i, int64_t entries, int64_t *low, int64_t *high);
+void draw(SDL_Window *win, SDL_Surface *screen_surf, SDL_Surface *page);
+
+#endif /* DRAW_H */

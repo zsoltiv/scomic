@@ -27,7 +27,7 @@
 #include <stdint.h>
 
 /* the maximum number of images stored as SDL_Surfaces at the same time */
-#define MAX_IMAGES_LOADED 11
+#define MAX_IMAGES_LOADED 5
 
 static void die(const char *msg);
 static uint8_t *read_file_to_memory(const char *archive, size_t *sz);
@@ -37,6 +37,8 @@ static void load_pages(SDL_Surface **images, zip_t *archive,
     int64_t i, int64_t low, int64_t high, SDL_Surface *win_surf);
 static void free_pages(SDL_Surface **_pages);
 static void get_high_and_low(int64_t i, int64_t entries, int64_t *low, int64_t *high);
+static void draw(SDL_Window *win, SDL_Surface *screen_surf, SDL_Surface *page);
+
 
 int main(int argc, char **argv)
 {
@@ -104,10 +106,12 @@ int main(int argc, char **argv)
     get_high_and_low(current_page, num_entries, &low, &high);
     load_pages(pages, za, current_page, low, high, win_surf);
 
+    /* main loop */
     while(run)
     {
         prev_page = current_page;
 
+        /* handle keyboard */
         SDL_PollEvent(&e);
 
         switch(e.type)
@@ -142,6 +146,8 @@ int main(int argc, char **argv)
             get_high_and_low(current_page, num_entries, &low, &high);
             load_pages(pages, za, current_page, low, high, win_surf);
         }
+
+        draw(win, win_surf, pages[current_page]);
     }
 
     zip_error_fini(&error);
@@ -248,7 +254,7 @@ static void load_pages(SDL_Surface **images, zip_t *archive,
 {
     for(int index = 0; index < MAX_IMAGES_LOADED; index++)
     {
-        printf("index: %d\npage: %d\n", index, low + index);
+        printf("index: %d\npage: %ld\n", index, low + index);
         size_t sz;
         uint8_t *buf = read_file_in_zip(archive, low + index, &sz);
         images[index] = load_img(buf, sz, win_surf);
@@ -263,4 +269,11 @@ static void free_pages(SDL_Surface **_pages)
     {
         SDL_FreeSurface(_pages[i]);
     }
+}
+
+static void draw(SDL_Window *win, SDL_Surface *screen_surf, SDL_Surface *page)
+{
+    SDL_BlitSurface(page, NULL, screen_surf, NULL);
+
+    SDL_UpdateWindowSurface(win);
 }

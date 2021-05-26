@@ -191,7 +191,7 @@ static uint8_t *read_file_to_memory(const char *archive, size_t *sz)
 
 static SDL_Surface *load_img(const uint8_t *buf, int size, SDL_Surface *win_surf)
 {
-    SDL_RWops *rw = SDL_RWFromMem(buf, size);
+    SDL_RWops *rw = SDL_RWFromMem((void *) buf, size);
     SDL_Surface *img = IMG_Load_RW(rw, 1);
 
     if(!img) {

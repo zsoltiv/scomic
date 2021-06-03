@@ -32,6 +32,8 @@
 #include "file.h"
 #include "draw.h"
 
+static void handle_input(bool *run, int64_t *prev_page, int64_t *current_page, int64_t num_entries);
+
 int main(int argc, char **argv)
 {
     if(argc != 3)
@@ -93,7 +95,6 @@ int main(int argc, char **argv)
     }
     SDL_SetRenderDrawColor(rend, 0, 0, 0, 255);
 
-    SDL_Event e;
 
     bool run = true;
 
@@ -108,34 +109,7 @@ int main(int argc, char **argv)
     while(run)
     {
         /* handle keyboard */
-        SDL_PollEvent(&e);
-
-        switch(e.type)
-        {
-            case SDL_QUIT:
-                run = false;
-                break;
-            case SDL_KEYDOWN:
-                switch(e.key.keysym.sym)
-                {
-                    case SDLK_q:
-                        run = false;
-                        break;
-                    case SDLK_UP:
-                        prev_page = current_page;
-                        current_page = (current_page <= 0) ? 0 : (current_page - 1);
-                        break;
-                    case SDLK_DOWN:
-                        prev_page = current_page;
-                        current_page = (current_page + 1 > num_entries) ? current_page : current_page + 1;
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            default:
-                break;
-        }
+        handle_input(&run, &prev_page, &current_page, num_entries);
 
         /* if the pages have changed, load new pages */
         if(current_page != prev_page) {
@@ -161,4 +135,37 @@ int main(int argc, char **argv)
     //IMG_Quit();
     //SDL_Quit();
     return 0;
+}
+
+static void handle_input(bool *run, int64_t *prev_page, int64_t *current_page, int64_t num_entries)
+{
+    SDL_Event e;
+    SDL_PollEvent(&e);
+
+    switch(e.type)
+    {
+        case SDL_QUIT:
+            *run = false;
+            break;
+        case SDL_KEYDOWN:
+            switch(e.key.keysym.sym)
+            {
+                case SDLK_q:
+                    *run = false;
+                    break;
+                case SDLK_UP:
+                    *prev_page = *current_page;
+                    *current_page = (*current_page <= 0) ? 0 : (*current_page - 1);
+                    break;
+                case SDLK_DOWN:
+                    *prev_page = *current_page;
+                    *current_page = (*current_page + 1 > num_entries) ? *current_page : *current_page + 1;
+                    break;
+                default:
+                    break;
+            }
+            break;
+        default:
+            break;
+    }
 }

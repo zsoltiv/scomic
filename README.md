@@ -2,7 +2,7 @@
 Simple comic reader based on SDL2.
 
 ## Usage
-scomic [FILE]
+scomic <FILE> <PAGE>
 
 ## Supported filetypes
 - cbz

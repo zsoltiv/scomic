@@ -8,12 +8,8 @@ scomic [FILE]
 - cbz
 
 ## Dependencies
-- SDL2-2-2.0.14
+- SDL2-2.0.14
 - SDL2_image-2.0.5
 - libzip-1.7.3
 
-These are the versions I tested with, the actual requirements may differ.
-
-## TODO
-- Finish writing the reader
-- Add support for cbr
+These are the versions I have tested with, the actual dependency versions may differ.

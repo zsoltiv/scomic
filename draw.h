@@ -27,13 +27,14 @@
 #include <zip.h>
 
 /* the maximum number of images stored as SDL_Surfaces at the same time */
-#define MAX_IMAGES_LOADED 5
+#define MAX_IMAGES_LOADED 1
 
-SDL_Surface *load_img(const uint8_t *buf, int size, SDL_Surface *win_surf);
+SDL_Surface *load_img(const uint8_t *buf, int size);
+SDL_Surface *load_page(zip_t *archive, int64_t i);
 void load_pages(SDL_Surface **images, zip_t *archive,
     int64_t i, int64_t low, int64_t high, SDL_Surface *win_surf);
 void free_pages(SDL_Surface **_pages);
 void get_high_and_low(int64_t i, int64_t entries, int64_t *low, int64_t *high);
-void draw(SDL_Window *win, SDL_Surface *screen_surf, SDL_Surface *page);
+void draw(SDL_Renderer *renderer, SDL_Window *win_ptr, SDL_Surface *page);
 
 #endif /* DRAW_H */

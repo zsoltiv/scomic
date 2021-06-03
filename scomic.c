@@ -15,6 +15,7 @@
 
 #include <SDL2/SDL_error.h>
 #include <SDL2/SDL_events.h>
+#include <SDL2/SDL_render.h>
 #include <SDL2/SDL_rwops.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
@@ -30,7 +31,6 @@
 #include "common.h"
 #include "file.h"
 #include "draw.h"
-
 
 int main(int argc, char **argv)
 {
@@ -83,26 +83,30 @@ int main(int argc, char **argv)
     int64_t num_entries = zip_get_num_entries(za, 0);
     printf("entries: %ld\n", num_entries);
 
-    printf("first file: %s\n", zip_get_name(za, 0, ZIP_FL_ENC_RAW));
+    //SDL_Surface **pages = malloc(MAX_IMAGES_LOADED * sizeof(SDL_Surface *));
+    SDL_Surface *page;
 
-    SDL_Surface **pages = malloc(MAX_IMAGES_LOADED * sizeof(SDL_Surface *));
+    SDL_Renderer *rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+    if(!rend) {
+        printf("%s\n", SDL_GetError());
+        die("failed to create renderer");
+    }
+    SDL_SetRenderDrawColor(rend, 0, 0, 0, 255);
 
     SDL_Event e;
 
     bool run = true;
 
     int64_t current_page = (argc == 3) ? atoi(argv[2]) : 0;
-    int64_t prev_page;
-    int64_t low, high;
+    int64_t prev_page, low, high;
 
-    get_high_and_low(current_page, num_entries, &low, &high);
-    load_pages(pages, za, current_page, low, high, win_surf);
+    //get_high_and_low(current_page, num_entries, &low, &high);
+    //load_pages(pages, za, current_page, low, high, win_surf);
+    page = load_page(za, current_page);
 
     /* main loop */
     while(run)
     {
-        prev_page = current_page;
-
         /* handle keyboard */
         SDL_PollEvent(&e);
 
@@ -118,10 +122,12 @@ int main(int argc, char **argv)
                         run = false;
                         break;
                     case SDLK_UP:
+                        prev_page = current_page;
                         current_page = (current_page <= 0) ? 0 : (current_page - 1);
                         break;
                     case SDLK_DOWN:
-                        current_page++;
+                        prev_page = current_page;
+                        current_page = (current_page + 1 > num_entries) ? current_page : current_page + 1;
                         break;
                     default:
                         break;
@@ -134,23 +140,25 @@ int main(int argc, char **argv)
         /* if the pages have changed, load new pages */
         if(current_page != prev_page) {
             /* TODO: make the loading part more efficient */
-            free_pages(pages);
-            get_high_and_low(current_page, num_entries, &low, &high);
-            load_pages(pages, za, current_page, low, high, win_surf);
+            //free_pages(pages);
+            //get_high_and_low(current_page, num_entries, &low, &high);
+            //load_pages(pages, za, current_page, low, high, win_surf);
+            page = load_page(za, current_page);
         }
 
-        draw(win, win_surf, pages[current_page]);
+        draw(rend, win, page);
     }
 
-    zip_error_fini(&error);
-    zip_source_close(src);
-    zip_source_free(src);
-    zip_close(za);
+    //zip_close(za);
+    //zip_source_close(src);
+    //zip_source_free(src);
+    //zip_error_fini(&error);
 
-    SDL_FreeSurface(win_surf);
-    SDL_DestroyWindow(win);
+    //SDL_FreeSurface(win_surf);
+    //SDL_DestroyRenderer(rend);
+    //SDL_DestroyWindow(win);
 
-    IMG_Quit();
-    SDL_Quit();
+    //IMG_Quit();
+    //SDL_Quit();
     return 0;
 }

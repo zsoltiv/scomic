@@ -15,6 +15,7 @@
 
 #include "common.h"
 #include "file.h"
+#include <stdint.h>
 
 uint8_t *read_file_to_memory(const char *archive, size_t *sz)
 {
@@ -53,12 +54,15 @@ uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz)
         fprintf(stderr, "%s\n", zip_file_strerror(fp));
         die("failed to open file in archive");
     }
+
+    printf("%s\n", zip_get_name(archive, i, ZIP_FL_UNCHANGED));
     
     *sz = stats.size;
 
     uint8_t *buffer = calloc(*sz, sizeof(uint8_t));
 
-    if(zip_fread(fp, buffer, *sz) == -1)
+    int64_t read = zip_fread(fp, buffer, *sz);
+    if(read == -1 || read < *sz)
         die("failed to read from file in archive");
 
     zip_fclose(fp);

@@ -36,7 +36,7 @@ static void handle_input(bool *run, int64_t *prev_page, int64_t *current_page, i
 
 int main(int argc, char **argv)
 {
-    if(argc != 3)
+    if(argc < 2)
         die("usage: scomic [FILE]");
 
     /* initialize SDL2 and SDL2_image */
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 
     bool run = true;
 
-    int64_t current_page = (argc == 3) ? atoi(argv[2]) : 0;
+    int64_t current_page = (argc == 3) ? atoi(argv[2]) : 1;
     int64_t prev_page, low, high;
 
     page = load_page(za, current_page);

@@ -85,7 +85,6 @@ int main(int argc, char **argv)
     int64_t num_entries = zip_get_num_entries(za, 0);
     printf("entries: %ld\n", num_entries);
 
-    //SDL_Surface **pages = malloc(MAX_IMAGES_LOADED * sizeof(SDL_Surface *));
     SDL_Surface *page;
 
     SDL_Renderer *rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
@@ -101,8 +100,6 @@ int main(int argc, char **argv)
     int64_t current_page = (argc == 3) ? atoi(argv[2]) : 0;
     int64_t prev_page, low, high;
 
-    //get_high_and_low(current_page, num_entries, &low, &high);
-    //load_pages(pages, za, current_page, low, high, win_surf);
     page = load_page(za, current_page);
 
     /* main loop */
@@ -113,10 +110,7 @@ int main(int argc, char **argv)
 
         /* if the pages have changed, load new pages */
         if(current_page != prev_page) {
-            /* TODO: make the loading part more efficient */
-            //free_pages(pages);
-            //get_high_and_low(current_page, num_entries, &low, &high);
-            //load_pages(pages, za, current_page, low, high, win_surf);
+            SDL_FreeSurface(page);
             page = load_page(za, current_page);
         }
 
@@ -155,9 +149,17 @@ static void handle_input(bool *run, int64_t *prev_page, int64_t *current_page, i
                     break;
                 case SDLK_UP:
                     *prev_page = *current_page;
-                    *current_page = (*current_page <= 0) ? 0 : (*current_page - 1);
+                    *current_page = (*current_page <= 1) ? *current_page : (*current_page - 1);
                     break;
                 case SDLK_DOWN:
+                    *prev_page = *current_page;
+                    *current_page = (*current_page + 1 > num_entries) ? *current_page : *current_page + 1;
+                    break;
+                case SDLK_k:
+                    *prev_page = *current_page;
+                    *current_page = (*current_page <= 1) ? *current_page : (*current_page - 1);
+                    break;
+                case SDLK_j:
                     *prev_page = *current_page;
                     *current_page = (*current_page + 1 > num_entries) ? *current_page : *current_page + 1;
                     break;

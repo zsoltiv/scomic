@@ -24,4 +24,22 @@
 uint8_t *read_file_to_memory(const char *archive, size_t *sz);
 uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz);
 
+struct page {
+    struct page *prev;
+
+    size_t         sz;
+    const void  *data;
+
+    struct page *next;
+};
+
+struct shared_data {
+    const char *filepath;
+    struct page   *first;
+    int            pages;
+};
+
+struct page *add_page(struct page *_last);
+int load_data(void *args);
+
 #endif /* FILE_H */

@@ -13,9 +13,16 @@
     You should have received a copy of the GNU Affero General Public License
     along with scomic.  If not, see <https://www.gnu.org/licenses/>. */
 
+#include <archive.h>
+#include <archive_entry.h>
+
+#include <stdint.h>
+#include <stdlib.h>
+
 #include "common.h"
 #include "file.h"
-#include <stdint.h>
+
+#define LIBARCHIVE_BUF_SZ 8192
 
 uint8_t *read_file_to_memory(const char *archive, size_t *sz)
 {
@@ -67,4 +74,73 @@ uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz)
 
     zip_fclose(fp);
     return buffer;
+}
+
+struct page *add_page(struct page *_last)
+{
+   struct page *new = malloc(sizeof(struct page));
+
+   if(_last)
+       _last->next = new;
+
+   new->prev   = _last;
+   new->data   =  NULL;
+   new->sz     =     0;
+
+   return new;
+}
+
+int load_data(void *args)
+{
+    struct shared_data *_shared = args;
+
+    struct archive *ar = archive_read_new();
+    if(!ar)
+        return EXIT_FAILURE;
+
+    archive_read_support_filter_all(ar);
+    archive_read_support_format_all(ar);
+
+    int r = archive_read_open_filename(ar, _shared->filepath, LIBARCHIVE_BUF_SZ);
+    if(r != ARCHIVE_OK) {
+        archive_read_free(ar);
+        return EXIT_FAILURE;
+    }
+
+    struct archive_entry *e;
+
+    struct page *last = _shared->first;
+
+    while((r = archive_read_next_header(ar, &e)) != ARCHIVE_EOF) {
+        if(r < ARCHIVE_WARN) {
+            archive_read_close(ar);
+            archive_read_free(ar);
+            return EXIT_FAILURE;
+        }
+
+        if(archive_entry_filetype(e) != AE_IFREG)
+            continue;
+
+        int64_t offset;
+        last = add_page(last);
+
+        while((r = archive_read_data_block(ar, &last->data,
+            &last->sz, &offset)) != ARCHIVE_EOF) {
+            if(r < ARCHIVE_WARN)
+                break;
+
+            if(last->data == NULL || last->sz == 0)
+                continue;
+        }
+
+        _shared->pages++;
+        printf("read page\n");
+    }
+
+    printf("number of pages: %d\n", _shared->pages);
+
+    archive_read_close(ar);
+    archive_read_free(ar);
+
+    return EXIT_SUCCESS;
 }

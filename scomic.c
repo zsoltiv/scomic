@@ -18,6 +18,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_rwops.h>
 #include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_thread.h>
 #include <SDL2/SDL_video.h>
 #include <SDL2/SDL_keyboard.h>
 #include <SDL2/SDL.h>
@@ -59,6 +60,15 @@ int main(int argc, char **argv)
         dm.w / 3, dm.h - 100, SDL_WINDOW_SHOWN);
 
     SDL_Surface *win_surf = SDL_GetWindowSurface(win);
+
+    /* init second thread */
+    struct shared_data *shared = malloc(sizeof(struct shared_data));
+    shared->filepath = argv[1];
+    shared->first = add_page(NULL);
+    shared->pages = 0;
+
+    SDL_Thread *secondary = SDL_CreateThread(load_data, "secondary", (void *) shared);
+
 
     /* read cbz archive */
     size_t sz;
@@ -128,6 +138,9 @@ int main(int argc, char **argv)
 
     //IMG_Quit();
     //SDL_Quit();
+
+    SDL_WaitThread(secondary, NULL);
+
     return 0;
 }
 

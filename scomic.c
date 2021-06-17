@@ -33,7 +33,7 @@
 #include "file.h"
 #include "draw.h"
 
-static void handle_input(bool *run, struct shared_data *_shared);
+static void handle_input(bool *run, bool *_page_changed, struct shared_data *_shared);
 
 static void dump_shared_data(struct shared_data *_shared);
 static int get_existing_page_count(struct shared_data *_shared);
@@ -84,26 +84,23 @@ int main(int argc, char **argv)
     }
     SDL_SetRenderDrawColor(rend, 0, 0, 0, 255);
 
-    bool run = true;
-
-    printf("start main loop\n");
+    bool run          = true;
+    bool page_changed = true;
 
     /* main loop */
-    while(run)
-    {
-        handle_input(&run, shared);
+    while(run) {
+        handle_input(&run, &page_changed, shared);
 
-        page = load_page(shared->current);
+        /* avoid redrawing every iteration */
+        if(page_changed) {
+            SDL_FreeSurface(page);
+            page = load_page(shared->current);
 
-        if(page) {
-            draw(rend, win, page);
-
-            //SDL_FreeSurface(page);
+            page_changed = false;
         }
 
-        /* debug stuff */
-        //dump_page(shared->current);
-        //dump_shared_data(shared);
+        if(page)
+            draw(rend, win, page);
     }
 
     //SDL_FreeSurface(win_surf);
@@ -116,7 +113,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-static void handle_input(bool *run, struct shared_data *_shared)
+static void handle_input(bool *run, bool *_page_changed, struct shared_data *_shared)
 {
     SDL_Event e;
     SDL_PollEvent(&e);
@@ -135,24 +132,28 @@ static void handle_input(bool *run, struct shared_data *_shared)
                 case SDLK_UP:
                     if(_shared->current->prev) {
                         _shared->current = _shared->current->prev;
+                        *_page_changed = true;
                         printf("decrement page\n");
                     }
                     break;
                 case SDLK_DOWN:
                     if(_shared->current->next) {
                         _shared->current = _shared->current->next;
+                        *_page_changed = true;
                         printf("increment page\n");
                     }
                     break;
                 case SDLK_k:
                     if(_shared->current->prev) {
                         _shared->current = _shared->current->prev;
+                        *_page_changed = true;
                         printf("decrement page\n");
                     }
                     break;
                 case SDLK_j:
                     if(_shared->current->next) {
                         _shared->current = _shared->current->next;
+                        *_page_changed = true;
                         printf("increment page\n");
                     }
                     break;

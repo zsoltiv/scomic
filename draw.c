@@ -38,7 +38,6 @@ SDL_Surface *load_page(struct page *_pg)
             return NULL;
         }
 
-        printf("loaded page successfully\n");
         return img;
 }
 

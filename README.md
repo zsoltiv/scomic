@@ -5,7 +5,7 @@ Simple comic reader based on SDL2.
 `scomic [FILE]`
 
 ## Supported filetypes
-Theoretically [all the filetypes libarchive supports](https://github.com/libarchive/libarchive/wiki/LibarchiveFormats).
+Theoretically [all the filetypes libarchive can read from](https://github.com/libarchive/libarchive/wiki/LibarchiveFormats).
 
 ## Dependencies
 - SDL2-2.0.14

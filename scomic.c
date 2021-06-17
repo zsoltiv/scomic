@@ -129,28 +129,24 @@ static void handle_input(bool *run, bool *_page_changed, struct shared_data *_sh
                     if(_shared->current->prev) {
                         _shared->current = _shared->current->prev;
                         *_page_changed = true;
-                        printf("decrement page\n");
                     }
                     break;
                 case SDLK_DOWN:
                     if(_shared->current->next) {
                         _shared->current = _shared->current->next;
                         *_page_changed = true;
-                        printf("increment page\n");
                     }
                     break;
                 case SDLK_k:
                     if(_shared->current->prev) {
                         _shared->current = _shared->current->prev;
                         *_page_changed = true;
-                        printf("decrement page\n");
                     }
                     break;
                 case SDLK_j:
                     if(_shared->current->next) {
                         _shared->current = _shared->current->next;
                         *_page_changed = true;
-                        printf("increment page\n");
                     }
                     break;
                 default:

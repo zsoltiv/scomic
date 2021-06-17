@@ -55,28 +55,6 @@ struct page *add_page(struct page *_last)
    return new;
 }
 
-bool does_page_exist(struct page *ptr)
-{
-    return ptr->data && ptr->sz;
-}
-
-static void print_error_code(int r)
-{
-    switch(r)
-    {
-        case ARCHIVE_RETRY:
-            printf("got ARCHIVE_RETRY\n");
-        case ARCHIVE_WARN:
-            printf("got ARCHIVE WARN\n");
-        case ARCHIVE_FAILED:
-            printf("got ARCHIVE_FAILED\n");
-        case ARCHIVE_FATAL:
-            printf("got ARCHIVE_FATAL\n");
-        case ARCHIVE_OK:
-            printf("got ARCHIVE_OK\n");
-    }
-}
-
 int load_data(void *args)
 {
     struct shared_data *_shared = args;
@@ -125,27 +103,7 @@ int load_data(void *args)
                 printf("archive_read_data() error: %s\n", archive_error_string(ar));
                 break;
             }
-
-            /* after this while loop is over,
-             * sz will be 0, so we only store it
-             * in last->sz if it's higher */
-            //if(sz)
-            //    last->sz = sz;
-            /* same thing here */
-            //if(data)
-            //    last->data = data;
-
-            /*if(last->data == NULL || last->sz <= 0)
-                continue;*/
-
-            //print_error_code(r);
-            printf("data pointer: %p\nsz: %ld\n", last->data, last->sz);
         }
-
-        printf("data pointer after while loop: %p\n", last->data);
-        printf("sz after the while loop: %ld\n", last->sz);
-
-        assert(last->sz == archive_entry_size(e));
 
         prev = last;
         last = add_page(prev);

@@ -16,21 +16,9 @@
 #ifndef DRAW_H
 #define DRAW_H
 
-#include <SDL2/SDL_error.h>
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_rwops.h>
-#include <SDL2/SDL_surface.h>
-#include <SDL2/SDL_video.h>
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
 
-#include <zip.h>
-
-/* the maximum number of images stored as SDL_Surfaces at the same time */
-#define MAX_IMAGES_LOADED 1
-
-SDL_Surface *load_img(const uint8_t *buf, int size);
-SDL_Surface *load_page(zip_t *archive, int64_t i);
+SDL_Surface *load_page(struct page *_pg);
 void draw(SDL_Renderer *renderer, SDL_Window *win_ptr, SDL_Surface *page);
 
 #endif /* DRAW_H */

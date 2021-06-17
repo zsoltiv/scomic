@@ -17,9 +17,11 @@
 #define FILE_H
 
 #include <zip.h>
+#include <SDL2/SDL_mutex.h>
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 uint8_t *read_file_to_memory(const char *archive, size_t *sz);
 uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz);
@@ -27,19 +29,23 @@ uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz);
 struct page {
     struct page *prev;
 
+    SDL_mutex    *mut;
     size_t         sz;
-    const void  *data;
+    void        *data;
 
     struct page *next;
 };
 
 struct shared_data {
-    const char *filepath;
-    struct page   *first;
-    int            pages;
+    char        *filepath;
+    struct page    *first;
+    struct page  *current;
+    struct page     *last;
 };
 
 struct page *add_page(struct page *_last);
+bool does_page_exist(struct page *ptr);
+struct page *jump_to_page(struct page *_first, int i);
 int load_data(void *args);
 
 #endif /* FILE_H */

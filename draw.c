@@ -13,44 +13,33 @@
     You should have received a copy of the GNU Affero General Public License
     along with scomic.  If not, see <https://www.gnu.org/licenses/>. */
 
+#include <SDL2/SDL_error.h>
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_rwops.h>
+#include <SDL2/SDL_video.h>
+#include <SDL2/SDL_image.h>
+
 #include "common.h"
 #include "file.h"
 #include "draw.h"
-#include <SDL2/SDL_error.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_video.h>
 
-SDL_Surface *load_img(const uint8_t *buf, int size)
+
+SDL_Surface *load_page(struct page *_pg)
 {
-    SDL_RWops *rw = SDL_RWFromMem((void *) buf, size);
-    if(!rw) {
-        printf("%s\n", SDL_GetError());
-        die("SDL_RWFromMem() failed");
-    }
+        SDL_RWops *rw = SDL_RWFromMem(_pg->data, (int) _pg->sz);
+        if(!rw) {
+            fprintf(stderr, "failed to read image data: %s\n", SDL_GetError());
+            return NULL;
+        }
 
-    SDL_Surface *img = IMG_Load_RW(rw, 1);
-    if(!img) {
-        SDL_Log("couldn't open image: %s\n", SDL_GetError());
-        return NULL;
-    }
+        SDL_Surface *img = IMG_Load_RW(rw, 1);
+        if(!img) {
+            fprintf(stderr, "couldn't open image: %s\n", IMG_GetError());
+            return NULL;
+        }
 
-    return img;
-}
-
-SDL_Surface *load_page(zip_t *archive, int64_t i)
-{
-    SDL_Surface *img;
-
-    printf("page: %ld\n", i);
-
-    size_t sz;
-    uint8_t *buf = read_file_in_zip(archive, i, &sz);
-
-    img = load_img(buf, sz);
-        
-    free(buf);
-
-    return img;
+        printf("loaded page successfully\n");
+        return img;
 }
 
 void draw(SDL_Renderer *renderer, SDL_Window *win_ptr, SDL_Surface *page)
@@ -65,18 +54,20 @@ void draw(SDL_Renderer *renderer, SDL_Window *win_ptr, SDL_Surface *page)
 
     SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, page);
     if(!tex) {
-        printf("%s\n", SDL_GetError());
-        die("failed to create texture from surface");
+        fprintf(stderr, "couldn't create texture from surface: %s\n", SDL_GetError());
+        return;
     }
 
     SDL_RenderClear(renderer);
 
     if(SDL_RenderCopy(renderer, tex, NULL, &rect) < 0) {
-        printf("%s\n", SDL_GetError());
+        fprintf(stderr, "failed to copy texture onto display: %s\n", SDL_GetError());
         die("failed to render image");
     }
 
     SDL_RenderPresent(renderer);
 
+
     SDL_DestroyTexture(tex);
 }
+

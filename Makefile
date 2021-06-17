@@ -1,7 +1,9 @@
 CC = gcc
-CFLAGS = -O2
+DEFINES = 
+CFLAGS = -O2 $(DEFINES)
 
-LDFLAGS = -lSDL2 -lSDL2_image -lzip -larchive
+
+LDFLAGS = -lSDL2 -lSDL2_image -larchive
 
 SOURCES := $(wildcard ./*.c)
 OBJECTS := $(patsubst ./%.c, ./%.o, $(SOURCES))

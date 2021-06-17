@@ -33,7 +33,11 @@
 #include "file.h"
 #include "draw.h"
 
-static void handle_input(bool *run, int64_t *prev_page, int64_t *current_page, int64_t num_entries);
+static void handle_input(bool *run, struct shared_data *_shared);
+
+static void dump_shared_data(struct shared_data *_shared);
+static int get_existing_page_count(struct shared_data *_shared);
+static void dump_page(struct page *_pg);
 
 int main(int argc, char **argv)
 {
@@ -63,74 +67,44 @@ int main(int argc, char **argv)
 
     /* init second thread */
     struct shared_data *shared = malloc(sizeof(struct shared_data));
-    shared->filepath = argv[1];
-    shared->first = add_page(NULL);
-    shared->pages = 0;
+    shared->filepath =        argv[1];
+    shared->first    = add_page(NULL);
+    shared->current  =  shared->first;
+    shared->last     =  shared->first;
 
-    SDL_Thread *secondary = SDL_CreateThread(load_data, "secondary", (void *) shared);
+    if(load_data((void *) shared) == EXIT_FAILURE)
+        die("load_data returned EXIT_FAILURE\n");
 
-
-    /* read cbz archive */
-    size_t sz;
-    void *data = read_file_to_memory(argv[1], &sz);
-
-    /* initialize libzip and open the cbz in memory */
-    zip_error_t error;
-    zip_error_init(&error);
-
-    zip_source_t *src = zip_source_buffer_create(data, sz, 1, &error);
-    if(!src) {
-        free(data);
-        zip_error_fini(&error);
-        die("failed to create source from data");
-    }
-
-    zip_t *za = zip_open_from_source(src, ZIP_RDONLY, &error);
-    if(!za) {
-        zip_source_free(src);
-        zip_error_fini(&error);
-        die("failed to create archive from source");
-    }
-
-    int64_t num_entries = zip_get_num_entries(za, 0);
-    printf("entries: %ld\n", num_entries);
-
-    SDL_Surface *page;
+    SDL_Surface *page = NULL;
 
     SDL_Renderer *rend = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
     if(!rend) {
-        printf("%s\n", SDL_GetError());
+        fprintf(stderr, "%s\n", SDL_GetError());
         die("failed to create renderer");
     }
     SDL_SetRenderDrawColor(rend, 0, 0, 0, 255);
 
-
     bool run = true;
 
-    int64_t current_page = (argc == 3) ? atoi(argv[2]) : 1;
-    int64_t prev_page, low, high;
-
-    page = load_page(za, current_page);
+    printf("start main loop\n");
 
     /* main loop */
     while(run)
     {
-        /* handle keyboard */
-        handle_input(&run, &prev_page, &current_page, num_entries);
+        handle_input(&run, shared);
 
-        /* if the pages have changed, load new pages */
-        if(current_page != prev_page) {
-            SDL_FreeSurface(page);
-            page = load_page(za, current_page);
+        page = load_page(shared->current);
+
+        if(page) {
+            draw(rend, win, page);
+
+            //SDL_FreeSurface(page);
         }
 
-        draw(rend, win, page);
+        /* debug stuff */
+        //dump_page(shared->current);
+        //dump_shared_data(shared);
     }
-
-    //zip_close(za);
-    //zip_source_close(src);
-    //zip_source_free(src);
-    //zip_error_fini(&error);
 
     //SDL_FreeSurface(win_surf);
     //SDL_DestroyRenderer(rend);
@@ -139,12 +113,10 @@ int main(int argc, char **argv)
     //IMG_Quit();
     //SDL_Quit();
 
-    SDL_WaitThread(secondary, NULL);
-
     return 0;
 }
 
-static void handle_input(bool *run, int64_t *prev_page, int64_t *current_page, int64_t num_entries)
+static void handle_input(bool *run, struct shared_data *_shared)
 {
     SDL_Event e;
     SDL_PollEvent(&e);
@@ -161,20 +133,28 @@ static void handle_input(bool *run, int64_t *prev_page, int64_t *current_page, i
                     *run = false;
                     break;
                 case SDLK_UP:
-                    *prev_page = *current_page;
-                    *current_page = (*current_page <= 1) ? *current_page : (*current_page - 1);
+                    if(_shared->current->prev) {
+                        _shared->current = _shared->current->prev;
+                        printf("decrement page\n");
+                    }
                     break;
                 case SDLK_DOWN:
-                    *prev_page = *current_page;
-                    *current_page = (*current_page + 1 > num_entries) ? *current_page : *current_page + 1;
+                    if(_shared->current->next) {
+                        _shared->current = _shared->current->next;
+                        printf("increment page\n");
+                    }
                     break;
                 case SDLK_k:
-                    *prev_page = *current_page;
-                    *current_page = (*current_page <= 1) ? *current_page : (*current_page - 1);
+                    if(_shared->current->prev) {
+                        _shared->current = _shared->current->prev;
+                        printf("decrement page\n");
+                    }
                     break;
                 case SDLK_j:
-                    *prev_page = *current_page;
-                    *current_page = (*current_page + 1 > num_entries) ? *current_page : *current_page + 1;
+                    if(_shared->current->next) {
+                        _shared->current = _shared->current->next;
+                        printf("increment page\n");
+                    }
                     break;
                 default:
                     break;
@@ -183,4 +163,16 @@ static void handle_input(bool *run, int64_t *prev_page, int64_t *current_page, i
         default:
             break;
     }
+}
+
+static void dump_shared_data(struct shared_data *_shared)
+{
+    printf("------shared data------\nfile: %s\naddress of current page: %p\n",
+        _shared->filepath, _shared->current);
+}
+
+static void dump_page(struct page *_pg)
+{
+    printf("page pointer: %p\ndata pointer: %p\nnext: %p\nprev: %p\n size: %ld\n",
+        _pg, _pg->data, _pg->next, _pg->prev, _pg->sz);
 }

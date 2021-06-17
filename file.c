@@ -13,68 +13,31 @@
     You should have received a copy of the GNU Affero General Public License
     along with scomic.  If not, see <https://www.gnu.org/licenses/>. */
 
+#include <SDL2/SDL_mutex.h>
 #include <archive.h>
 #include <archive_entry.h>
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
 #include "common.h"
 #include "file.h"
 
 #define LIBARCHIVE_BUF_SZ 8192
 
-uint8_t *read_file_to_memory(const char *archive, size_t *sz)
-{
-    FILE *fp = fopen(archive, "rb");
-    if(!fp)
-        die("failed to open archive");
 
-    fseek(fp, 0, SEEK_END);
-    *sz = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
+static const char *supported_extensions[] = {
+    "jpg",
+    "jpeg",
+    "png",
+    "bmp"
+};
 
-    uint8_t *buf = malloc(*sz * sizeof(uint8_t));
 
-    if(fread(buf, sizeof(uint8_t), *sz, fp) < *sz)
-        die("failed to read from file");
-
-    fclose(fp);
-
-    return buf;
-}
-
-uint8_t *read_file_in_zip(zip_t *archive, uint64_t i, size_t *sz)
-{
-    zip_stat_t stats;
-    zip_stat_init(&stats);
-
-    /* get size of file in archive */
-    zip_stat_index(archive, i, ZIP_FL_ENC_RAW, &stats);
-    if((stats.valid & ZIP_STAT_SIZE) == ZIP_STAT_SIZE)
-        printf("file size: %lu\n", stats.size);
-    else
-        die("failed to get file size");
-
-    zip_file_t *fp = zip_fopen_index(archive, i, ZIP_FL_UNCHANGED);
-    if(!fp) {
-        fprintf(stderr, "%s\n", zip_file_strerror(fp));
-        die("failed to open file in archive");
-    }
-
-    printf("%s\n", zip_get_name(archive, i, ZIP_FL_UNCHANGED));
-    
-    *sz = stats.size;
-
-    uint8_t *buffer = calloc(*sz, sizeof(uint8_t));
-
-    int64_t read = zip_fread(fp, buffer, *sz);
-    if(read == -1 || read < *sz)
-        die("failed to read from file in archive");
-
-    zip_fclose(fp);
-    return buffer;
-}
+static char *get_extension(const char *filepath);
+static bool is_file_img(const char *filepath);
 
 struct page *add_page(struct page *_last)
 {
@@ -83,11 +46,35 @@ struct page *add_page(struct page *_last)
    if(_last)
        _last->next = new;
 
-   new->prev   = _last;
-   new->data   =  NULL;
-   new->sz     =     0;
+   new->prev   =                        _last;
+   new->next   =                         NULL;
+   new->mut    =            SDL_CreateMutex();
+   new->data   =                         NULL;
+   new->sz     =                            0;
 
    return new;
+}
+
+bool does_page_exist(struct page *ptr)
+{
+    return ptr->data && ptr->sz;
+}
+
+static void print_error_code(int r)
+{
+    switch(r)
+    {
+        case ARCHIVE_RETRY:
+            printf("got ARCHIVE_RETRY\n");
+        case ARCHIVE_WARN:
+            printf("got ARCHIVE WARN\n");
+        case ARCHIVE_FAILED:
+            printf("got ARCHIVE_FAILED\n");
+        case ARCHIVE_FATAL:
+            printf("got ARCHIVE_FATAL\n");
+        case ARCHIVE_OK:
+            printf("got ARCHIVE_OK\n");
+    }
 }
 
 int load_data(void *args)
@@ -103,6 +90,7 @@ int load_data(void *args)
 
     int r = archive_read_open_filename(ar, _shared->filepath, LIBARCHIVE_BUF_SZ);
     if(r != ARCHIVE_OK) {
+        printf("libarchive error: %s\n", archive_error_string(ar));
         archive_read_free(ar);
         return EXIT_FAILURE;
     }
@@ -110,37 +98,91 @@ int load_data(void *args)
     struct archive_entry *e;
 
     struct page *last = _shared->first;
+    struct page *prev =           last;
 
     while((r = archive_read_next_header(ar, &e)) != ARCHIVE_EOF) {
         if(r < ARCHIVE_WARN) {
+            printf("libarchive error: %s\n", archive_error_string(ar));
             archive_read_close(ar);
             archive_read_free(ar);
             return EXIT_FAILURE;
         }
 
-        if(archive_entry_filetype(e) != AE_IFREG)
+        /* we don't read anything unless the entry
+         * is an image file supported by SDL2_image */
+        char *ext = get_extension(archive_entry_pathname(e));
+        if(archive_entry_filetype(e) != AE_IFREG
+            || !is_file_img(ext))
             continue;
 
         int64_t offset;
-        last = add_page(last);
 
-        while((r = archive_read_data_block(ar, &last->data,
-            &last->sz, &offset)) != ARCHIVE_EOF) {
-            if(r < ARCHIVE_WARN)
+        last->sz = archive_entry_size(e);
+        last->data = malloc(last->sz);
+        if((r = archive_read_data(ar, last->data,
+            last->sz)) != ARCHIVE_EOF) {
+            if(r < ARCHIVE_WARN) {
+                printf("archive_read_data() error: %s\n", archive_error_string(ar));
                 break;
+            }
 
-            if(last->data == NULL || last->sz == 0)
-                continue;
+            /* after this while loop is over,
+             * sz will be 0, so we only store it
+             * in last->sz if it's higher */
+            //if(sz)
+            //    last->sz = sz;
+            /* same thing here */
+            //if(data)
+            //    last->data = data;
+
+            /*if(last->data == NULL || last->sz <= 0)
+                continue;*/
+
+            //print_error_code(r);
+            printf("data pointer: %p\nsz: %ld\n", last->data, last->sz);
         }
 
-        _shared->pages++;
-        printf("read page\n");
+        printf("data pointer after while loop: %p\n", last->data);
+        printf("sz after the while loop: %ld\n", last->sz);
+
+        assert(last->sz == archive_entry_size(e));
+
+        prev = last;
+        last = add_page(prev);
     }
 
-    printf("number of pages: %d\n", _shared->pages);
 
     archive_read_close(ar);
     archive_read_free(ar);
 
     return EXIT_SUCCESS;
+}
+
+static char *get_extension(const char *filepath)
+{
+    const char delim[2] = ".";
+    char *ptr;
+    char *str = strtok(filepath, delim);
+
+    while(str) {
+        ptr = str;
+        str = strtok(NULL, delim);
+    }
+
+    return ptr;
+}
+
+static bool is_file_img(const char *filepath)
+{
+    char *ext = get_extension(filepath);
+
+    if(!ext)
+        return NULL;
+
+    for(int i = 0; i < sizeof(supported_extensions) / sizeof(char *); i++) {
+        if(strcmp(ext, supported_extensions[i]) == 0)
+            return true;
+    }
+
+    return false;
 }

@@ -35,10 +35,6 @@
 
 static void handle_input(bool *run, bool *_page_changed, struct shared_data *_shared);
 
-static void dump_shared_data(struct shared_data *_shared);
-static int get_existing_page_count(struct shared_data *_shared);
-static void dump_page(struct page *_pg);
-
 int main(int argc, char **argv)
 {
     if(argc < 2)
@@ -164,16 +160,4 @@ static void handle_input(bool *run, bool *_page_changed, struct shared_data *_sh
         default:
             break;
     }
-}
-
-static void dump_shared_data(struct shared_data *_shared)
-{
-    printf("------shared data------\nfile: %s\naddress of current page: %p\n",
-        _shared->filepath, _shared->current);
-}
-
-static void dump_page(struct page *_pg)
-{
-    printf("page pointer: %p\ndata pointer: %p\nnext: %p\nprev: %p\n size: %ld\n",
-        _pg, _pg->data, _pg->next, _pg->prev, _pg->sz);
 }

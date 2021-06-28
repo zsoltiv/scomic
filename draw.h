@@ -18,7 +18,29 @@
 
 #include <SDL2/SDL.h>
 
+struct sdl_ctx {
+    SDL_Window          *win;
+    SDL_Surface    *win_surf;
+
+    SDL_Renderer       *rend;
+
+    /* window dimensions */
+    int                win_w;
+    int                win_h;
+
+    int             offset_x;
+    int             offset_y;
+
+    SDL_DisplayMode       dm;
+
+    SDL_Rect            rect;
+
+    /* the drawable page */
+    SDL_Surface        *page;
+};
+
+struct sdl_ctx *init_sdl();
 SDL_Surface *load_page(struct page *_pg);
-void draw(SDL_Renderer *renderer, SDL_Window *win_ptr, SDL_Surface *page);
+void draw(struct sdl_ctx *ctx);
 
 #endif /* DRAW_H */

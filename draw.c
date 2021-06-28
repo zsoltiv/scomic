@@ -23,6 +23,51 @@
 #include "file.h"
 #include "draw.h"
 
+struct sdl_ctx *init_sdl()
+{
+    /* init SDL2 and SDL2_image */
+    if(SDL_Init(SDL_INIT_VIDEO) < 0)
+        die("failed to initialize SDL2");
+
+    int flags = IMG_INIT_JPG | IMG_INIT_PNG;
+    if((IMG_Init(flags) & flags) != flags)
+        die("failed to initialize SDL_image");
+
+    struct sdl_ctx *ctx = malloc(sizeof(struct sdl_ctx));
+
+    ctx->page = NULL;
+
+    if(SDL_GetDesktopDisplayMode(0, &ctx->dm) != 0) {
+        SDL_Log("%s\n", SDL_GetError());
+        die("failed to get resolution");
+    }
+
+    /* create window */
+    ctx->win = SDL_CreateWindow("scomic",
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        ctx->dm.w / 3, ctx->dm.h - 100, SDL_WINDOW_SHOWN);
+
+    ctx->win_surf = SDL_GetWindowSurface(ctx->win);
+
+    ctx->rend = SDL_CreateRenderer(ctx->win, -1, SDL_RENDERER_ACCELERATED);
+    if(!ctx->rend) {
+        fprintf(stderr, "%s\n", SDL_GetError());
+        die("failed to create renderer");
+    }
+
+    SDL_GetWindowSize(ctx->win, &ctx->win_w, &ctx->win_h);
+
+    /* create rectangle to render to */
+    ctx->rect.x = 0;
+    ctx->rect.y = 0;
+
+    ctx->rect.w = (ctx->win_w == 0) ? 100 : ctx->win_w;
+    ctx->rect.h = (ctx->win_h == 0) ? 300 : ctx->win_h;
+
+    SDL_SetRenderDrawColor(ctx->rend, 0, 0, 0, 255);
+
+    return ctx;
+}
 
 SDL_Surface *load_page(struct page *_pg)
 {
@@ -41,32 +86,22 @@ SDL_Surface *load_page(struct page *_pg)
         return img;
 }
 
-void draw(SDL_Renderer *renderer, SDL_Window *win_ptr, SDL_Surface *page)
+void draw(struct sdl_ctx *ctx)
 {
-    int w, h;
-    SDL_GetWindowSize(win_ptr, &w, &h);
-    SDL_Rect rect;
-    rect.x = 0;
-    rect.y = 0;
-    rect.w = (w == 0) ? 100 : w;
-    rect.h = (h == 0) ? 300 : h;
-
-    SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, page);
+    SDL_Texture *tex = SDL_CreateTextureFromSurface(ctx->rend, ctx->page);
     if(!tex) {
         fprintf(stderr, "couldn't create texture from surface: %s\n", SDL_GetError());
         return;
     }
 
-    SDL_RenderClear(renderer);
+    SDL_RenderClear(ctx->rend);
 
-    if(SDL_RenderCopy(renderer, tex, NULL, &rect) < 0) {
+    if(SDL_RenderCopy(ctx->rend, tex, NULL, &ctx->rect) < 0) {
         fprintf(stderr, "failed to copy texture onto display: %s\n", SDL_GetError());
         die("failed to render image");
     }
 
-    SDL_RenderPresent(renderer);
-
+    SDL_RenderPresent(ctx->rend);
 
     SDL_DestroyTexture(tex);
 }
-

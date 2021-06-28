@@ -55,6 +55,17 @@ struct page *add_page(struct page *_last)
    return new;
 }
 
+struct shared_data *init_shared(char *_filepath)
+{
+    struct shared_data *shared = malloc(sizeof(struct shared_data));
+    shared->filepath =      _filepath;
+    shared->first    = add_page(NULL);
+    shared->current  =  shared->first;
+    shared->last     =  shared->first;
+
+    return shared;
+}
+
 int load_data(void *args)
 {
     struct shared_data *_shared = args;

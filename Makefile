@@ -1,6 +1,5 @@
 CC = gcc
-DEFINES = 
-CFLAGS = -O2 $(DEFINES)
+CFLAGS = 
 
 
 LDFLAGS = -lSDL2 -lSDL2_image -larchive

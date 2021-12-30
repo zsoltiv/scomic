@@ -91,7 +91,7 @@ int load_data(void *args)
 
     while((r = archive_read_next_header(ar, &e)) != ARCHIVE_EOF) {
         if(r < ARCHIVE_WARN) {
-            printf("libarchive error: %s\n", archive_error_string(ar));
+            fprintf(stderr, "libarchive error: %s\n", archive_error_string(ar));
             archive_read_close(ar);
             archive_read_free(ar);
             return EXIT_FAILURE;
@@ -99,8 +99,9 @@ int load_data(void *args)
 
         /* we don't read anything unless the entry
          * is an image file supported by SDL2_image */
-        //char *ext = get_extension(archive_entry_pathname(e));
-        const char *pathname = archive_entry_pathname(e);
+        const char *pathname = archive_entry_pathname_utf8(e);
+        if(!pathname)
+            die("archive_entry_pathname() returned NULL");
         char *ext = calloc(strlen(pathname) + 1 , 1);
         strncpy(ext, pathname, strlen(pathname));
         ext = get_extension(ext);

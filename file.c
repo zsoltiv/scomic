@@ -36,8 +36,8 @@ static const char *supported_extensions[] = {
 };
 
 
-static char *get_extension(const char *filepath);
-static bool is_file_img(const char *filepath);
+static char *get_extension(char *filepath);
+static bool is_file_img(char *filepath);
 
 struct page *add_page(struct page *_last)
 {
@@ -99,10 +99,16 @@ int load_data(void *args)
 
         /* we don't read anything unless the entry
          * is an image file supported by SDL2_image */
-        char *ext = get_extension(archive_entry_pathname(e));
+        //char *ext = get_extension(archive_entry_pathname(e));
+        const char *pathname = archive_entry_pathname(e);
+        char *ext = calloc(strlen(pathname) + 1 , 1);
+        strncpy(ext, pathname, strlen(pathname));
+        ext = get_extension(ext);
         if(archive_entry_filetype(e) != AE_IFREG
             || !is_file_img(ext))
             continue;
+        
+        free(ext);
 
         int64_t offset;
 
@@ -127,7 +133,7 @@ int load_data(void *args)
     return EXIT_SUCCESS;
 }
 
-static char *get_extension(const char *filepath)
+static char *get_extension(char *filepath)
 {
     const char delim[2] = ".";
     char *ptr;
@@ -141,7 +147,7 @@ static char *get_extension(const char *filepath)
     return ptr;
 }
 
-static bool is_file_img(const char *filepath)
+static bool is_file_img(char *filepath)
 {
     char *ext = get_extension(filepath);
 
